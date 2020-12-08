@@ -4,6 +4,7 @@ import librosa.display
 from matplotlib import pyplot as plt
 import cv2
 import tensorflow as tf
+import random
 from tensorflow import keras
 
 """ convert to mono -> downsample to 10880hz -> 
@@ -46,27 +47,28 @@ def plot_spectogram(D, is_track=True):
     plt.tight_layout()
     plt.show()
 
+"""generate dataset containing spectograms of random 6 second chunks of both full track and vocals"""
+def dataset_generator(train_set):
+    dataset_length = 50
+    dataset = []
+    for i in range(dataset_length):
+        track = random.choice(train_set.tracks)
+        track.chunk_duration = 6.0
+        track.chunk_start = random.uniform(0, track.duration - track.chunk_duration)
+
+        sample_rate = track.rate
+        track_stereo = track.audio.T
+        vocals_stereo = track.targets['vocals'].audio.T
+
+        track_spectogram = audio_to_spectogram(track_stereo, sample_rate)
+        vocals_spectogram = audio_to_spectogram(vocals_stereo, sample_rate)
+        dataset.append((track_spectogram, vocals_spectogram))
+
+    return dataset
 
 if __name__ == '__main__':
     mus_train = musdb.DB(root="musdb", subsets="train")
     mus_test = musdb.DB(root="musdb", subsets="test")
+    dataset = dataset_generator(mus_train)
+    print(dataset.shape)
 
-    for track in mus_train.tracks:
-        track_stereo = track.audio.T
-        start = 0
-        track.chunk_duration = 6.0
-        sample_rate = track.rate
-
-        while start < track.duration:
-            track.chunk_start = start
-
-            track_stereo = track.audio.T
-            vocals_stereo = track.targets['vocals'].audio.T
-
-            track_spectogram = audio_to_spectogram(track_stereo, sample_rate)
-            vocals_spectogram = audio_to_spectogram(vocals_stereo, sample_rate)
-
-            start = start + track.chunk_duration
-
-            plot_spectogram(track_spectogram)
-            plot_spectogram(vocals_spectogram, is_track=False)
